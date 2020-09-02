@@ -264,6 +264,7 @@ function RPC.Client:batch(...)
     local req = self.parentModule.serialize.encode(bat)
     self.parentModule.transport.send(self.socket, req)
     local res = self.parentModule.serialize.decode(self.parentModule.transport.recv(self.socket))
+    return true, res
 end
 
 function RPC.Client:close()
