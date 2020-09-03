@@ -10,10 +10,11 @@ function RPC:inject(components)
     moduleInstance.thread = components.thread
     moduleInstance.Server.parentModule = moduleInstance
     moduleInstance.Client.parentModule = moduleInstance
+    moduleInstance.uuid = components.uuid
     return moduleInstance
 end
 
-function RPC.newRequest(method, id, params)
+function RPC:newRequest(method, id, params)
     local req = {
         jsonrpc = "2.0",
         method = method,
@@ -21,6 +22,8 @@ function RPC.newRequest(method, id, params)
     }
     if id then
         req.id = id
+    else
+        req.id = self.uuid.next()
     end
     return req
 end
@@ -234,7 +237,8 @@ end
 
 function RPC.Client:call(funcName, ...)
     assert(type(funcName) == "string")
-    local req = self.parentModule.serialize.encode(self.parentModule.newRequest(funcName, 1, {...}))
+    local newid = self.parentModule.uuid.next()
+    local req = self.parentModule.serialize.encode(self.parentModule:newRequest(funcName, newid, {...}))
     self.parentModule.transport.send(self.socket, req)
     local res = self.parentModule.serialize.decode(self.parentModule.transport.recv(self.socket))
     if res.code then
@@ -248,7 +252,7 @@ end
 
 function RPC.Client:notify(funcName, ...)
     assert(type(funcName) == "string")
-    local req = self.parentModule.serialize.encode(self.parentModule.newRequest(funcName, {...}))
+    local req = self.parentModule.serialize.encode(self.parentModule:newRequest(funcName, {...}))
     self.parentModule.transport.send(self.socket, req)
 end
 
@@ -256,7 +260,7 @@ function RPC.Client:batch(...)
     local bat = {}
     for k, v in pairs({...}) do
         if v.id then 
-            bat[k] = self.parentModule.newRequest(v.method, v.id, v.params)
+            bat[k] = self.parentModule:newRequest(v.method, v.id, v.params)
         else
             bat[k] = self.parentModule.newNotification(v.method, v.params)
         end
